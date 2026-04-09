@@ -1,6 +1,6 @@
-const cron = require("node-cron")
-const prisma = require("../prisma/client")
-const dayjs = require("dayjs")
+import cron from "node-cron"
+import dayjs from "dayjs"
+import prisma from "../prisma/client"
 
 cron.schedule("* * * * *", async () => {
   console.log("RUN CRON: CHECK POINT EXPIRATION")

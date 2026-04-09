@@ -20,8 +20,11 @@ model User {
 
   pointHistories PointHistory[]
   coupons        Coupon[]
+  events         Event[]        @relation("OrganizerEvents")
+  transactions   Transaction[]
+  reviews        Review[]
 
-  resetToken   String?
+  resetToken    String?
   resetTokenExp DateTime?
 }
 
@@ -49,4 +52,79 @@ model Coupon {
 enum Role {
   CUSTOMER
   ORGANIZER
+}
+
+model Event {
+  id             String   @id @default(uuid())
+  organizerId    String
+  organizer      User     @relation("OrganizerEvents", fields: [organizerId], references: [id])
+  title          String
+  description    String
+  category       String
+  location       String
+  imageUrl       String?
+  startDate      DateTime
+  endDate        DateTime
+  price          Int      @default(0)
+  totalSeats     Int
+  availableSeats Int
+
+  vouchers     Voucher[]
+  transactions Transaction[]
+  reviews      Review[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Voucher {
+  id        String   @id @default(uuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id])
+  code      String   @unique
+  discount  Int
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime @default(now())
+}
+
+model Transaction {
+  id              String            @id @default(uuid())
+  customerId      String
+  customer        User              @relation(fields: [customerId], references: [id])
+  eventId         String
+  event           Event             @relation(fields: [eventId], references: [id])
+  quantity        Int
+  basePrice       Int
+  finalPrice      Int
+  pointsUsed      Int               @default(0)
+  voucherCode     String?
+  couponCode      String?
+  paymentProof    String?
+  status          TransactionStatus @default(WAITING_PAYMENT)
+  paymentDeadline DateTime
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+enum TransactionStatus {
+  WAITING_PAYMENT
+  WAITING_CONFIRMATION
+  DONE
+  REJECTED
+  EXPIRED
+  CANCELLED
+}
+
+model Review {
+  id         String   @id @default(uuid())
+  customerId String
+  customer   User     @relation(fields: [customerId], references: [id])
+  eventId    String
+  event      Event    @relation(fields: [eventId], references: [id])
+  rating     Int
+  comment    String?
+  createdAt  DateTime @default(now())
+
+  @@unique([customerId, eventId])
 }

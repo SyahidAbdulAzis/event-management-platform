@@ -1,11 +1,13 @@
-const prisma = require("../prisma/client")
-const bcrypt = require("bcryptjs")
-const jwt = require("jsonwebtoken")
-const { generate } = require("voucher-code-generator")
-const dayjs = require("dayjs")
+/// <reference path="../types/voucher-code-generator.d.ts" />
+import { Request, Response } from "express"
+import bcrypt from "bcryptjs"
+import jwt from "jsonwebtoken"
+import { generate } from "voucher-code-generator"
+import dayjs from "dayjs"
+import prisma from "../prisma/client"
 
 // ================= REGISTER =================
-exports.register = async (req, res) => {
+export const register = async (req: Request, res: Response) => {
   try {
     const { email, password, referralCode } = req.body
 
@@ -78,13 +80,13 @@ exports.register = async (req, res) => {
       }
     })
 
-  } catch (err) {
+  } catch (err: any) {
     res.status(500).json({ message: err.message })
   }
 }
 
 // ================= LOGIN =================
-exports.login = async (req, res) => {
+export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body
 
@@ -107,7 +109,7 @@ exports.login = async (req, res) => {
         id: user.id,
         role: user.role
       },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET as string,
       { expiresIn: "1d" }
     )
 
@@ -121,18 +123,18 @@ exports.login = async (req, res) => {
       }
     })
 
-  } catch (err) {
+  } catch (err: any) {
     res.status(500).json({ message: err.message })
   }
 }
 
 // ================= UPDATE PROFILE =================
-exports.updateProfile = async (req, res) => {
+export const updateProfile = async (req: Request, res: Response) => {
   try {
     const { email } = req.body
 
     const user = await prisma.user.update({
-      where: { id: req.user.id },
+      where: { id: (req as any).user.id },
       data: { email }
     })
 
@@ -144,14 +146,13 @@ exports.updateProfile = async (req, res) => {
       }
     })
 
-  } catch (err) {
+  } catch (err: any) {
     res.status(500).json({ message: err.message })
   }
 }
 
-
 // ================= FORGOT PASSWORD =================
-exports.forgotPassword = async (req, res) => {
+export const forgotPassword = async (req: Request, res: Response) => {
   try {
     const { email } = req.body
 
@@ -178,14 +179,13 @@ exports.forgotPassword = async (req, res) => {
       resetToken   // ⚠️ biasanya dikirim via email, tapi kita tampilkan
     })
 
-  } catch (err) {
+  } catch (err: any) {
     res.status(500).json({ message: err.message })
   }
 }
 
-
 // ================= RESET PASSWORD =================
-exports.resetPassword = async (req, res) => {
+export const resetPassword = async (req: Request, res: Response) => {
   try {
     const { token, newPassword } = req.body
 
@@ -217,7 +217,7 @@ exports.resetPassword = async (req, res) => {
       message: "Password reset success"
     })
 
-  } catch (err) {
+  } catch (err: any) {
     res.status(500).json({ message: err.message })
   }
 }
