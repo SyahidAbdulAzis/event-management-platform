@@ -10,6 +10,7 @@ export default function Register() {
     password: "",
     confirmPassword: "",
     referralCode: "",
+    role: "CUSTOMER",
   })
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -97,6 +98,37 @@ export default function Register() {
               className="w-full px-4 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
               placeholder="••••••••"
             />
+          </div>
+
+          {/* Role */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-300 mb-2">
+              Daftar Sebagai
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, role: "CUSTOMER" }))}
+                className={`py-3 rounded-lg font-semibold text-sm border-2 transition ${
+                  formData.role === "CUSTOMER"
+                    ? "border-purple-500 bg-purple-600 text-white"
+                    : "border-gray-600 bg-gray-700 text-gray-300 hover:border-gray-500"
+                }`}
+              >
+                Customer
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, role: "ORGANIZER" }))}
+                className={`py-3 rounded-lg font-semibold text-sm border-2 transition ${
+                  formData.role === "ORGANIZER"
+                    ? "border-purple-500 bg-purple-600 text-white"
+                    : "border-gray-600 bg-gray-700 text-gray-300 hover:border-gray-500"
+                }`}
+              >
+                Organizer
+              </button>
+            </div>
           </div>
 
           {/* Referral Code */}

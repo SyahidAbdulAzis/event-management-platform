@@ -1,191 +1,352 @@
+import { useState, useEffect } from "react"
 import { Link, useParams } from "react-router-dom"
+import api from "../lib/axios"
 import Navbar from "../components/Navbar"
 import Footer from "../components/Footer"
 
-// Dummy data untuk event detail
+// Dummy data untuk event detail - tema Eratix
 const DUMMY_EVENT = {
   id: "1",
-  title: "Neon Industrial Nights",
-  tagline: "Live Experience",
-  date: "24 October 2024",
-  time: "Doors open 19:00 — Late",
-  location: "The Concrete Factory, Jakarta",
-  address: "Kawasan Industri Pulogadung",
-  description: "Experience the ultimate industrial audio experience with top-tier production and underground vibes.",
-  imageUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuBsA2Kg66N2GVC0eFqQkUpdIrB7VAjmPtjKwTXbmvBuCQolpGS2GoVm6Gnfu5bImbyk-YW69UMEphG4aG1UQCH5lAmzoh4JVzi_09WTizVfNlve5cPZIE6aHdjgPCkEjMckvyXTbhBQ1e2P1dxt601ueHtKqM9EkIT-MqHYAsYc58AD8ky6bnErFS1XSN3nbWBfxCKiN29uleQsk74dKzAzl6XNE3CXCTM9HpngNLUw_D7lAKHOo0qUnBM5VuyWwOTNUtxZnp61lXo9",
-  price: 750000,
-  availableSeats: 142,
+  title: "Synchronize Fest 2026",
+  tagline: "Festival",
+  date: "4–6 Okt 2026",
+  endDate: "6 Okt 2026",
+  time: "14:00 - 23:00 WIB",
+  location: "Gambir Expo, Jakarta",
+  address: "Jl. H. Benyamin Sueb, Kemayoran, Jakarta Pusat",
+  description: "Synchronize Fest adalah festival musik indie terbesar di Indonesia yang menghadirkan berbagai band lokal dan internasional. Dengan suasana yang intimate dan penuh energi, festival ini menawarkan pengalaman musik yang tak terlupakan. Nikmati 3 hari penuh dengan musik, seni, dan komunitas yang hangat. Synchronize Fest telah menjadi wadah bagi musisi indie untuk berkarya dan berbagi karya mereka dengan penggemar setia.",
+  imageUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuDttdAfmKU06df1lk1QPnq5d8HLBrw_cl1bFH-muTC7T4FPJ4U9zLSjo4vQub32GnPBBp8sHv4kQxtQLGm9xS5-ijRA2larx8dOAOPIhs39YCaDgT-F6xXBgAq6R3l8ZrqdEI-oIwyD14PoH_iAtqsQ_uTk6AE5vvT0eck_yOQjlMA_DpmiVXa7BHm13dMfk7LqHVrvzeYodoT2O5Ob9bS-u63rRhUW6mY2rNwJ9JF-IvvrEW_E9UOTyttM3XIfqwkoDeG3iPrkCMH5",
+  price: 450000,
+  availableSeats: 250,
   status: "SELLING FAST",
-  lineup: [
-    { name: "VORTEX SYNDICATE", time: "22:00 - CLOSE" },
-    { name: "STEEL PULSE", time: "20:30 - 21:45" },
-    { name: "SIGNAL LOSS", time: "19:30 - 20:15" },
+  category: "Festival",
+  // Jenis tiket sesuai dokumentasi: "jenis tiket (jika ada)"
+  ticketTypes: [
+    { id: 1, name: "Regular Day 1", price: 450000, description: "Akses untuk hari pertama festival" },
+    { id: 2, name: "Regular Day 2", price: 450000, description: "Akses untuk hari kedua festival" },
+    { id: 3, name: "Regular Day 3", price: 450000, description: "Akses untuk hari ketiga festival" },
+    { id: 4, name: "3-Day Pass", price: 1200000, description: "Akses untuk semua 3 hari festival (hemat 15%)" },
+    { id: 5, name: "VIP 3-Day Pass", price: 2500000, description: "Akses VIP untuk semua 3 hari + backstage access" },
   ],
   organizer: {
-    name: "VIBE Collective",
-    imageUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuCXwiTHO8WH139Hn9yWPHu-ZiYDM14HZz8CONuJhqdQwkoMlgtaJXSCcJZWNz_ab00IqU_np88nryeW8cxGyQEbpvRzlDxDwbA9KhyhG48Tgt5nltsU2VFuZSCJNAka6GMLIBwX-tAIdnTjwjGxARy3nYGoEYLKiTJdD0sjLjvI9OjENuW168RMG_a_41w9kk-uaGQauEGwJrZh_6Kyu35Wv6c0qOZ8K0D3hWEUsLs-uEN2c07sxah3S7S9BgD5XFxEV1rLAerCeY7S",
-    rating: 4.8,
-    description: "VIBE Collective is the premier curator of industrial-grade audio experiences in Southeast Asia. We transform raw warehouses into sonic temples, delivering zero-compromise production for the hardest acts in the scene.",
+    name: "Synchronize Festival",
+    imageUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuDPtgOfJUbb_r84Kmwb83pegyWDT07iP7WVvx7zBaP8DAiFxzVJWfIBX6i18Ap2VvEEKw-YeXtv-flkzCe95T7O4mnY94drrSJ3rAUfgzeoBzqJudlrh4Py3G6IbMi-yl_qyIR7aRhUgU9FG4o2rYWfv81425fWN5h-LkGb0ksdaTvk3OcOV2aJ6gKtTZHbzcJcN_jz9n7jBuhghpT7lvleEX_yNI0xkpWVpS-ZGwjcAjeYznsS5HYGFP1RmXFkyHOm1xxIwTkgnx-i",
+    rating: 4.9,
+    description: "Synchronize Festival adalah event organizer profesional yang telah menggelar festival musik bertaraf internasional sejak 2015.",
   },
   reviews: [
-    { name: "MARCUS REED", rating: 5, text: "Absolute sonic devastation. The warehouse acoustics were handled perfectly by the VIBE crew. Best industrial set I've seen in Jakarta so far." },
-    { name: "SARAH TAN", rating: 4, text: "The production value was insane. Vortex Syndicate closing set was worth the ticket alone. Only minus was the long queue for drinks." },
-    { name: "ECHO_SYSTEM", rating: 4, text: "Pure industrial bliss. The location choice was perfect. Looking forward to the next one from VIBE Records." },
+    { id: 1, name: "Ahmad Rizky", rating: 5, comment: "Event yang sangat seru! Suasana festivalnya asik banget.", date: "2 minggu lalu" },
+    { id: 2, name: "Sarah Amelia", rating: 5, comment: "Synchronize Fest selalu jadi favorit saya. Organizer sangat profesional.", date: "1 bulan lalu" },
+    { id: 3, name: "Budi Santoso", rating: 4, comment: "Bagus sih, cuma antrean masuknya agak lama. Tapi overall experience-nya oke.", date: "3 minggu lalu" },
+    { id: 4, name: "Dewi Kusuma", rating: 5, comment: "Pengalaman yang tak terlupakan! Bakal datang lagi tahun depan.", date: "1 minggu lalu" },
   ],
-  venueMapUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuC4CNc09MMVblB4_dyQBs3bNGmJDYv3Czg69Fnop-vb0lSxDzLusupZk74s8E2pS49dlD30fzNOFmFBhMfJTR-PqQfyiyp7r1qbam8g-fogYW1uUrKYz7l2IAhNjiUHY3DykVWrCK7U5EnDga_KJ6pY2k8MiV9WBM3Mekez2WxOCRv7z6efRB9gSsuTYRVuvd3321hUhkBqmfDVPIZDjpK5KHqLvZIn798bOPdOZI2Mqd5_CbNVtyANrzDS_2Jdy56JbT1NIBn4Lc_l",
+  vouchers: [
+    { id: 1, code: "SYNC25", discount: 25, expiryDate: "2026-09-30" },
+    { id: 2, code: "EARLYBIRD", discount: 15, expiryDate: "2026-08-15" },
+  ],
 }
 
 export default function EventDetailPage() {
   const { id } = useParams()
-  const event = DUMMY_EVENT
+  const [event, setEvent] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!id) return
+    api.get(`/api/events/${id}`)
+      .then(res => setEvent(res.data.event))
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [id])
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center font-['Inter'] pt-12" style={{ background: "#f3f4f6" }}><Navbar /><p className="text-gray-400">Memuat event...</p></div>
+  if (!event) return <div className="min-h-screen flex items-center justify-center font-['Inter'] pt-12" style={{ background: "#f3f4f6" }}><Navbar /><p className="text-gray-400">Event tidak ditemukan</p></div>
 
   return (
-    <div className="min-h-screen bg-background text-on-surface font-body selection:bg-primary selection:text-on-primary-fixed">
+    <div className="min-h-screen font-['Inter'] pt-12" style={{ background: "#f3f4f6" }}>
       <Navbar />
 
-      <main className="pt-20">
-        {/* Hero Section */}
-        <section className="relative w-full h-[716px] overflow-hidden">
-          <img
-            alt="Concert background"
-            className="w-full h-full object-cover grayscale opacity-60"
-            src={event.imageUrl}
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent"></div>
-          <div className="absolute bottom-0 left-0 w-full p-8 md:p-16 flex flex-col items-start gap-4">
-            <span className="bg-primary-dim text-on-primary-fixed px-3 py-1 font-label text-[10px] tracking-widest uppercase">{event.tagline}</span>
-            <h1 className="text-6xl md:text-9xl font-headline font-black tracking-tighter leading-[0.8] max-w-4xl uppercase">
-              {event.title.split(" ").slice(0, 2).join(" ")} <br/>
-              {event.title.split(" ").slice(2).join(" ")}
-            </h1>
+      {/* ══════════════════════════════════════
+          HERO BANNER
+      ══════════════════════════════════════ */}
+      <section className="pt-8 px-5">
+        <div className="max-w-7xl mx-auto">
+          <div className="relative w-full h-[300px] md:h-[380px] rounded-2xl overflow-hidden mb-6">
+            <img
+              alt={event.title}
+              className="w-full h-full object-cover"
+              src={event.imageUrl}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+            <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
+              <h1 className="text-2xl md:text-4xl font-['Plus_Jakarta_Sans'] font-extrabold text-white leading-tight">
+                {event.title}
+              </h1>
+            </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Content Grid */}
-        <section className="grid grid-cols-1 md:grid-cols-12 gap-0 border-t border-outline-variant/10">
-          {/* Left Column - Event Details */}
-          <div className="md:col-span-8 p-8 md:p-16 bg-surface">
-            {/* Date & Location */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-20">
-              <div className="space-y-2">
-                <p className="font-label text-stone-500 uppercase tracking-widest text-xs">Date & Time</p>
-                <p className="text-2xl font-headline font-bold">{event.date}</p>
-                <p className="text-stone-400">{event.time}</p>
-              </div>
-              <div className="space-y-2">
-                <p className="font-label text-stone-500 uppercase tracking-widest text-xs">Location</p>
-                <p className="text-2xl font-headline font-bold">{event.location}</p>
-                <p className="text-stone-400">{event.address}</p>
-              </div>
-            </div>
-
-            {/* Lineup */}
-            <div className="space-y-8 mb-20">
-              <h3 className="text-4xl font-headline font-black uppercase tracking-tight">The Lineup</h3>
-              <div className="flex flex-col gap-1">
-                {event.lineup.map((item, index) => (
-                  <div key={index} className="flex justify-between items-center p-6 bg-surface-container-low hover:bg-primary-dim transition-all group">
-                    <span className="text-2xl font-headline font-bold group-hover:text-on-primary-fixed">{item.name}</span>
-                    <span className="font-label text-stone-500 group-hover:text-on-primary-fixed">{item.time}</span>
+      {/* ══════════════════════════════════════
+          MAIN CONTENT
+      ══════════════════════════════════════ */}
+      <section className="py-5 px-5">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            
+            {/* LEFT COLUMN - Event Info */}
+            <div className="lg:col-span-8 space-y-5">
+              
+              {/* Info Acara - Gabungan */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                {/* Header */}
+                <div className="p-5 border-b border-gray-100">
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    <span className="bg-[#0c4a6e]/10 text-[#0c4a6e] px-3 py-1 rounded-full text-xs font-medium">
+                      {event.category}
+                    </span>
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Organizer */}
-            <div className="bg-surface-container-high p-8 flex flex-col md:flex-row gap-8 items-start mb-20">
-              <img alt="Organizer" className="w-32 h-32 object-cover grayscale" src={event.organizer.imageUrl} />
-              <div className="flex-1 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xl font-headline font-bold uppercase tracking-tight">{event.organizer.name}</h4>
-                  <div className="flex items-center gap-1 text-primary">
-                    {[1, 2, 3, 4].map((i) => (
-                      <span key={i} className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                    ))}
-                    <span className="material-symbols-outlined">star_half</span>
-                    <span className="text-on-surface font-label ml-2">{event.organizer.rating}</span>
-                  </div>
+                  <h1 className="text-xl md:text-2xl font-bold text-gray-900 font-['Plus_Jakarta_Sans'] leading-tight">
+                    {event.title}
+                  </h1>
                 </div>
-                <p className="text-stone-400 text-sm leading-relaxed">{event.organizer.description}</p>
-              </div>
-            </div>
 
-            {/* Reviews */}
-            <div className="space-y-10">
-              <h3 className="text-4xl font-headline font-black uppercase tracking-tight border-b border-outline-variant/20 pb-4">Reviews & Ratings</h3>
-              <div className="grid gap-8">
-                {event.reviews.map((review, index) => (
-                  <div key={index} className={`space-y-4 ${index < event.reviews.length - 1 ? "border-b border-outline-variant/10 pb-8" : ""}`}>
-                    <div className="flex items-center justify-between">
-                      <p className="font-headline font-bold text-lg uppercase">{review.name}</p>
-                      <div className="flex items-center gap-1 text-primary scale-90 origin-right">
-                        {[1, 2, 3, 4, 5].map((i) => (
-                          <span
-                            key={i}
-                            className="material-symbols-outlined"
-                            style={{ fontVariationSettings: i <= review.rating ? "'FILL' 1" : "'FILL' 0" }}
-                          >
-                            {i <= review.rating ? "star" : i - 0.5 === review.rating ? "star_half" : "star"}
-                          </span>
-                        ))}
+                {/* Info Grid */}
+                <div className="p-5 border-b border-gray-100">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-[#0ea5e9]/10 flex items-center justify-center">
+                        <span className="material-symbols-outlined text-[#0ea5e9]">calendar_today</span>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Tanggal</p>
+                        <p className="text-sm font-medium text-gray-800">{event.date}</p>
                       </div>
                     </div>
-                    <p className="text-stone-400 text-sm leading-relaxed">{review.text}</p>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-[#0ea5e9]/10 flex items-center justify-center">
+                        <span className="material-symbols-outlined text-[#0ea5e9]">schedule</span>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Waktu</p>
+                        <p className="text-sm font-medium text-gray-800">{event.time}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-[#0ea5e9]/10 flex items-center justify-center">
+                        <span className="material-symbols-outlined text-[#0ea5e9]">location_on</span>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Lokasi</p>
+                        <p className="text-sm font-medium text-gray-800">{event.location}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-[#0ea5e9]/10 flex items-center justify-center">
+                        <span className="material-symbols-outlined text-[#0ea5e9]">confirmation_number</span>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Status</p>
+                        <p className="text-sm font-medium text-[#f97316]">{event.status}</p>
+                      </div>
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          </div>
+                </div>
 
-          {/* Right Column - Ticket Sidebar */}
-          <div className="md:col-span-4 bg-surface-container-low p-8 md:p-12 border-l border-outline-variant/10 sticky top-20 h-fit">
-            <div className="space-y-12">
-              {/* Price & Availability */}
-              <div className="space-y-6">
-                <div className="flex justify-between items-end border-b border-outline-variant pb-4">
-                  <span className="font-label text-stone-500 uppercase tracking-widest text-xs">Standard Pass</span>
-                  <span className="text-3xl font-headline font-black text-primary">Rp {event.price.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary text-lg">event_seat</span>
-                    <span className="text-stone-300 font-medium">Availability</span>
+                {/* Organizer */}
+                <div className="p-5 border-b border-gray-100">
+                  <p className="text-xs text-gray-500 mb-2">Diselenggarakan oleh</p>
+                  <div className="flex items-center gap-3">
+                    <img 
+                      alt={event.organizer.name} 
+                      className="w-12 h-12 rounded-lg object-cover" 
+                      src={event.organizer.imageUrl} 
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-bold text-gray-800 truncate">{event.organizer.name}</h4>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="material-symbols-outlined text-[#f97316] text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                        <span className="text-sm font-bold text-gray-800">{event.organizer.rating}</span>
+                        <span className="text-xs text-gray-500 ml-1">• {event.organizer.description.slice(0, 50)}...</span>
+                      </div>
+                    </div>
                   </div>
-                  <span className="text-white font-label">{event.availableSeats} SEATS LEFT</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary text-lg">local_activity</span>
-                    <span className="text-stone-300 font-medium">Entry Status</span>
-                  </div>
-                  <span className="text-error font-label uppercase">{event.status}</span>
-                </div>
-              </div>
 
-              {/* Buy Button */}
-              <div className="space-y-4">
-                <Link to={`/checkout/${id}`}>
-                  <button className="w-full bg-primary-dim text-on-primary-fixed py-6 font-headline font-black uppercase text-xl tracking-tighter hover:bg-primary transition-all active:scale-[0.98] flex items-center justify-center gap-3">
-                    Buy Ticket
-                    <span className="material-symbols-outlined">arrow_forward</span>
+                {/* Deskripsi */}
+                <div className="p-5">
+                  <h3 className="text-base font-bold text-gray-800 mb-3 font-['Plus_Jakarta_Sans']">Deskripsi</h3>
+                  <p className="text-gray-600 text-sm leading-relaxed">{event.description}</p>
+                  <button className="text-[#0ea5e9] text-sm font-medium mt-3 flex items-center gap-1">
+                    <span className="hover:underline">Selengkapnya</span>
+                    <span className="material-symbols-outlined text-base">expand_more</span>
                   </button>
-                </Link>
-                <p className="text-center text-[10px] text-stone-600 font-label uppercase tracking-widest">Digital tickets sent via email immediately</p>
+                </div>
+
+                {/* Jenis Tiket - sesuai dokumentasi */}
+                {event.ticketTypes && event.ticketTypes.length > 0 && (
+                  <div className="p-5 border-t border-gray-100">
+                    <h3 className="text-base font-bold text-gray-800 mb-3 font-['Plus_Jakarta_Sans']">Jenis Tiket</h3>
+                    <div className="space-y-3">
+                      {event.ticketTypes.map((ticket: any) => (
+                        <div key={ticket.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-gray-800">{ticket.name}</p>
+                            <p className="text-xs text-gray-500">{ticket.description}</p>
+                          </div>
+                          <p className="text-sm font-bold text-[#0c4a6e]">Rp {ticket.price.toLocaleString()}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Venue Map */}
-              <div className="pt-8 border-t border-outline-variant/20 space-y-6">
-                <h5 className="font-label text-xs uppercase tracking-[0.2em] text-stone-500">Venue Map</h5>
-                <div className="aspect-square bg-surface-container-highest flex items-center justify-center relative overflow-hidden">
-                  <img alt="Map" className="w-full h-full object-cover opacity-30 grayscale" src={event.venueMapUrl} />
-                  <div className="absolute inset-0 border-2 border-primary/20 pointer-events-none"></div>
-                  <div className="absolute p-4 bg-primary-dim text-on-primary-fixed font-label text-[10px]">PULOGADUNG INDUSTRIAL CENTER</div>
+            </div>
+
+            {/* RIGHT COLUMN - Sticky Sidebar */}
+            <div className="lg:col-span-4">
+              <div className="sticky top-24 space-y-4">
+                
+                {/* Ticket Card */}
+                <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+                  <div className="mb-4">
+                    <p className="text-xs text-gray-500 mb-1">Harga tiket mulai dari</p>
+                    <p className="text-2xl font-extrabold text-[#0c4a6e]">Rp {event.price.toLocaleString()}</p>
+                  </div>
+                  
+                  <Link to={`/checkout/${id}`}>
+                    <button className="w-full bg-[#0ea5e9] text-white py-3 font-bold text-sm rounded-lg hover:bg-[#0284c7] transition-colors">
+                      Beli Tiket
+                    </button>
+                  </Link>
+                  
+                  <p className="text-center text-xs text-gray-400 mt-3">
+                    Dengan melanjutkan pembelian, Anda telah membaca dan setuju dengan ketentuan yang berlaku.
+                  </p>
+                </div>
+
+                {/* Voucher Tersedia */}
+                {event.vouchers && event.vouchers.length > 0 && (
+                  <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                    <p className="text-sm font-medium text-gray-800 mb-3 flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[#0ea5e9] text-base">local_offer</span>
+                      Voucher Tersedia
+                    </p>
+                    <div className="space-y-2">
+                      {event.vouchers.map((voucher: any) => (
+                        <div key={voucher.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-[#0c4a6e] text-sm">{voucher.code}</span>
+                            <span className="text-xs text-gray-600">{voucher.discount}% OFF</span>
+                          </div>
+                          <span className="text-xs text-gray-400">s/d {new Date(voucher.expiryDate).toLocaleDateString('id-ID')}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Kontak & Bantuan */}
+                <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                  <p className="text-sm font-medium text-gray-800 mb-2">Butuh bantuan?</p>
+                  <a href="#" className="flex items-center gap-2 text-sm text-gray-600 hover:text-[#0ea5e9] transition-colors">
+                    <span className="material-symbols-outlined text-base">mail</span>
+                    support@irama.id
+                  </a>
+                  <a href="#" className="flex items-center gap-2 text-sm text-gray-600 hover:text-[#0ea5e9] transition-colors mt-1">
+                    <span className="material-symbols-outlined text-base">phone</span>
+                    0812-3456-7890
+                  </a>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════
+          INFO BANNERS (2 col) - sama seperti LandingPage
+      ══════════════════════════════════════ */}
+      <section className="py-5 px-5">
+        <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-4">
+          {/* Banner 1 */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-start gap-4">
+            <div className="w-12 h-12 rounded-xl bg-[#eff6ff] flex items-center justify-center flex-shrink-0">
+              <span className="material-symbols-outlined text-[#0ea5e9] text-2xl">help_outline</span>
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-gray-800 mb-1 font-['Plus_Jakarta_Sans']">
+                Masih bingung cara beli tiket?
+              </h3>
+              <p className="text-sm text-gray-500 leading-relaxed mb-3">
+                Dengan IRAMA, kamu bisa beli tiket secara aman, mudah dan cepat. Yuk, mulai cari event impianmu sekarang!
+              </p>
+              <Link to="/browse"
+                className="inline-flex items-center gap-1 text-[#0ea5e9] text-base font-bold group">
+                <span className="group-hover:underline">Cari event sekarang</span>
+                <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+              </Link>
+            </div>
+          </div>
+          {/* Banner 2 */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-start gap-4">
+            <div className="w-12 h-12 rounded-xl bg-[#fff7ed] flex items-center justify-center flex-shrink-0">
+              <span className="material-symbols-outlined text-[#f97316] text-2xl">sell</span>
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-gray-800 mb-1 font-['Plus_Jakarta_Sans']">
+                Jual tiket event tanpa potongan! 🎉
+              </h3>
+              <p className="text-sm text-gray-500 leading-relaxed mb-3">
+                Jual tiket eventmu tanpa potongan biaya apapun. Gratis, mudah, dan bisa dikelola 24/7 dari mana saja!
+              </p>
+              <Link to="/events/create"
+                className="inline-flex items-center gap-1 text-[#f97316] text-base font-bold group">
+                <span className="group-hover:underline">Jual tiket sekarang</span>
+                <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════
+          CTA BANNER — sama seperti LandingPage
+      ══════════════════════════════════════ */}
+      <section className="py-5 px-5">
+        <div className="max-w-7xl mx-auto">
+          <div className="relative rounded-2xl overflow-hidden bg-[#0c4a6e]">
+            {/* bg texture */}
+            <div className="absolute inset-0 opacity-10"
+              style={{ backgroundImage:"radial-gradient(circle, white 1px, transparent 1px)", backgroundSize:"24px 24px" }}></div>
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6 px-8 py-10 md:py-12">
+              <div className="flex-1 text-center md:text-left">
+                <h2 className="font-['Plus_Jakarta_Sans'] text-2xl md:text-3xl font-extrabold text-white leading-tight mb-3">
+                  Banyak yang perlu kamu pikirin,<br />
+                  tapi soal jual tiket serahkan ke kami!
+                </h2>
+                <p className="text-white/60 text-base mb-6 max-w-md">
+                  Fokus ke eventmu, biar urusan ticketing kami yang handle sepenuhnya.
+                </p>
+                <div className="flex flex-wrap gap-3 justify-center md:justify-start">
+                  <Link to="/events/create"
+                    className="inline-flex items-center gap-1.5 bg-white text-[#0c4a6e] text-base font-bold px-6 py-2.5 rounded-lg hover:bg-gray-100 transition-colors shadow-md">
+                    Lihat selengkapnya
+                  </Link>
+                  <a href="#"
+                    className="inline-flex items-center gap-1.5 bg-white/10 text-white text-base font-semibold px-6 py-2.5 rounded-lg hover:bg-white/20 transition-colors border border-white/20">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" className="w-5 h-5" />
+                    Hubungi Kami
+                  </a>
                 </div>
               </div>
             </div>
           </div>
-        </section>
-      </main>
+        </div>
+      </section>
 
       <Footer />
     </div>

@@ -9,7 +9,7 @@ import prisma from "../prisma/client"
 // ================= REGISTER =================
 export const register = async (req: Request, res: Response) => {
   try {
-    const { email, password, referralCode } = req.body
+    const { email, password, referralCode, role } = req.body
 
     // cek email sudah ada
     const existingUser = await prisma.user.findUnique({
@@ -35,19 +35,21 @@ export const register = async (req: Request, res: Response) => {
       })
     }
 
+    const userRole = role === "ORGANIZER" ? "ORGANIZER" : "CUSTOMER"
+
     // create user
     const user = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
-        role: "CUSTOMER",
+        role: userRole,
         referralCode: myReferral,
-        referredBy: referredUser ? referredUser.id : null
+        referredBy: userRole === "CUSTOMER" && referredUser ? referredUser.id : null
       }
     })
 
-    // kasih reward
-    if (referredUser) {
+    // kasih reward (hanya untuk CUSTOMER yang pakai referral)
+    if (userRole === "CUSTOMER" && referredUser) {
       console.log("REFERRAL VALID → kasih reward")
 
       // point ke referrer
