@@ -2,26 +2,8 @@ import { useState, useEffect } from "react"
 import { Link, useParams } from "react-router-dom"
 import Navbar from "../components/Navbar"
 import Footer from "../components/Footer"
+import StarRating from "../components/StarRating"
 import api from "../lib/axios"
-
-/* ─── COMPONENTS ─── */
-function StarRating({ rating }: { rating: number }) {
-  return (
-    <div className="flex gap-0.5">
-      {[1, 2, 3, 4, 5].map((star) => (
-        <span
-          key={star}
-          className={`material-symbols-outlined text-sm ${
-            star <= rating ? "text-[#f97316]" : "text-gray-300"
-          }`}
-          style={{ fontVariationSettings: star <= rating ? "'FILL' 1" : "'FILL' 0" }}
-        >
-          star
-        </span>
-      ))}
-    </div>
-  )
-}
 
 function ReviewCard({ review }: { review: any }) {
   return (
@@ -125,11 +107,19 @@ export default function OrganizerProfile() {
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-5 border-b border-gray-100">
                   <div className="flex items-center gap-4">
-                    <img
-                      src={`https://ui-avatars.com/api/?name=${encodeURIComponent(organizer.email)}&background=0c4a6e&color=fff&size=200`}
-                      alt={organizer.email}
-                      className="w-14 h-14 rounded-xl object-cover flex-shrink-0"
-                    />
+                    {organizer.profilePhoto ? (
+                      <img
+                        src={organizer.profilePhoto}
+                        alt={organizer.email}
+                        className="w-14 h-14 rounded-xl object-cover flex-shrink-0"
+                      />
+                    ) : (
+                      <img
+                        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(organizer.email)}&background=0c4a6e&color=fff&size=200`}
+                        alt={organizer.email}
+                        className="w-14 h-14 rounded-xl object-cover flex-shrink-0"
+                      />
+                    )}
                     <div className="flex-1 min-w-0">
                       <h2 className="text-lg font-bold text-gray-800 font-['Plus_Jakarta_Sans']">{organizer.email}</h2>
                       <div className="flex items-center gap-2 mt-1">
@@ -170,7 +160,7 @@ export default function OrganizerProfile() {
               {activeTab === "reviews" && (
                 <div className="space-y-3">
                   {reviews.length === 0 ? (
-                    <p className="text-center text-gray-400 py-10">Belum ada ulasan</p>
+                    <div className="rounded-xl border border-gray-200 shadow-sm text-center py-14 px-6 text-sm text-gray-500">Belum ada ulasan</div>
                   ) : (
                     reviews.map((review: any) => (
                       <ReviewCard key={review.id} review={review} />
@@ -183,7 +173,7 @@ export default function OrganizerProfile() {
               {activeTab === "events" && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {events.length === 0 ? (
-                    <p className="text-center text-gray-400 py-10 col-span-3">Belum ada event</p>
+                    <div className="rounded-xl border border-gray-200 shadow-sm text-center py-14 px-6 text-sm text-gray-500 col-span-3">Belum ada event</div>
                   ) : (
                     events.map((event: any) => (
                       <EventCard key={event.id} event={event} />

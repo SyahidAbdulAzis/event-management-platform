@@ -23,8 +23,9 @@ export const register = async (req: Request, res: Response) => {
     // hash password
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    // generate referral sendiri
-    const myReferral = generate({ length: 6 })[0]
+    // generate referral sendiri (hanya untuk CUSTOMER)
+    const userRole = role === "ORGANIZER" ? "ORGANIZER" : "CUSTOMER"
+    const myReferral = userRole === "CUSTOMER" ? generate({ length: 6 })[0] : null
 
     // cari user referral
     let referredUser = null
@@ -34,8 +35,6 @@ export const register = async (req: Request, res: Response) => {
         where: { referralCode }
       })
     }
-
-    const userRole = role === "ORGANIZER" ? "ORGANIZER" : "CUSTOMER"
 
     // create user
     const user = await prisma.user.create({
@@ -49,7 +48,7 @@ export const register = async (req: Request, res: Response) => {
     })
 
     // kasih reward (hanya untuk CUSTOMER yang pakai referral)
-    if (userRole === "CUSTOMER" && referredUser) {
+    if (userRole === "CUSTOMER" && referredUser && referredUser.role === "CUSTOMER") {
       console.log("REFERRAL VALID → kasih reward")
 
       // point ke referrer
@@ -121,7 +120,9 @@ export const login = async (req: Request, res: Response) => {
       user: {
         id: user.id,
         email: user.email,
-        role: user.role
+        role: user.role,
+        referralCode: user.referralCode,
+        profilePhoto: user.profilePhoto
       }
     })
 
@@ -130,24 +131,39 @@ export const login = async (req: Request, res: Response) => {
   }
 }
 
-// ================= UPDATE PROFILE =================
-export const updateProfile = async (req: Request, res: Response) => {
+// ================= CHANGE PASSWORD (LOGIN USER) =================
+export const changePassword = async (req: Request, res: Response) => {
   try {
-    const { email } = req.body
+    const userId = (req as any).user?.id
+    const { currentPassword, newPassword } = req.body
 
-    const user = await prisma.user.update({
-      where: { id: (req as any).user.id },
-      data: { email }
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "Current password and new password are required" })
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: "Password minimal 6 karakter" })
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } })
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" })
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password)
+    if (!isMatch) {
+      return res.status(400).json({ message: "Password saat ini salah" })
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10)
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword }
     })
 
-    res.json({
-      message: "Profile updated",
-      user: {
-        id: user.id,
-        email: user.email
-      }
-    })
-
+    res.json({ message: "Password berhasil diubah" })
   } catch (err: any) {
     res.status(500).json({ message: err.message })
   }
@@ -219,6 +235,28 @@ export const resetPassword = async (req: Request, res: Response) => {
       message: "Password reset success"
     })
 
+  } catch (err: any) {
+    res.status(500).json({ message: err.message })
+  }
+}
+
+// ================= DELETE PROFILE PHOTO =================
+export const deleteProfilePhoto = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id
+
+    const user = await prisma.user.findUnique({ where: { id: userId } })
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" })
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { profilePhoto: null }
+    })
+
+    res.json({ message: "Foto profil berhasil dihapus" })
   } catch (err: any) {
     res.status(500).json({ message: err.message })
   }

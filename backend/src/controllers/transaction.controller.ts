@@ -2,8 +2,8 @@ import { Request, Response } from "express"
 import prisma from "../prisma/client"
 import dayjs from "dayjs"
 import multer from "multer"
-import path from "path"
-import fs from "fs"
+import cloudinary from "../config/cloudinary"
+import { sendEmail } from "../config/email"
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -13,20 +13,22 @@ interface AuthenticatedRequest extends Request {
 }
 
 // ================= MULTER CONFIG =================
-const uploadDir = path.join(__dirname, "../../uploads")
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true })
-}
+// Use memory storage for Cloudinary upload
+const storage = multer.memoryStorage()
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadDir),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname)
-    cb(null, `proof-${Date.now()}${ext}`)
+export const upload = multer({
+  storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true)
+    } else {
+      cb(new Error('Only image files are allowed'))
+    }
   }
 })
-
-export const upload = multer({ storage })
 
 // ================= CREATE TRANSACTION (buy ticket) =================
 export const createTransaction = async (req: AuthenticatedRequest, res: Response) => {
@@ -49,10 +51,12 @@ export const createTransaction = async (req: AuthenticatedRequest, res: Response
     let appliedCouponCode: string | null = null
 
     // Apply voucher
-    if (voucherCode) {
+    if (basePrice > 0 && voucherCode) {
       const voucher = await prisma.voucher.findUnique({ where: { code: voucherCode } })
       const now = new Date()
-      if (voucher && voucher.eventId === eventId && voucher.startDate <= now && voucher.endDate >= now) {
+      // Voucher is valid if it belongs to the event and hasn't expired (endDate >= now)
+      // startDate check removed to allow vouchers to be used before they "start" for pre-event purchases
+      if (voucher && voucher.eventId === eventId && voucher.endDate >= now) {
         finalPrice = finalPrice - Math.floor(finalPrice * voucher.discount / 100)
         appliedVoucherCode = voucherCode
       } else {
@@ -61,7 +65,7 @@ export const createTransaction = async (req: AuthenticatedRequest, res: Response
     }
 
     // Apply coupon
-    if (couponCode) {
+    if (basePrice > 0 && couponCode) {
       const coupon = await prisma.coupon.findFirst({
         where: { code: couponCode, userId: req.user!.id, isUsed: false, expiresAt: { gt: new Date() } }
       })
@@ -76,7 +80,7 @@ export const createTransaction = async (req: AuthenticatedRequest, res: Response
 
     // Apply points
     let usedPoints = 0
-    if (pointsUsed && pointsUsed > 0) {
+    if (basePrice > 0 && pointsUsed && pointsUsed > 0) {
       const user = await prisma.user.findUnique({ where: { id: req.user!.id } })
       if (!user) return res.status(404).json({ message: "User not found" })
 
@@ -92,6 +96,7 @@ export const createTransaction = async (req: AuthenticatedRequest, res: Response
 
     // Payment deadline: 2 hours from now sesuai dokumentasi
     const paymentDeadline = dayjs().add(2, "hour").toDate()
+    const initialStatus = finalPrice === 0 ? "DONE" : "WAITING_PAYMENT"
 
     const transaction = await prisma.transaction.create({
       data: {
@@ -104,9 +109,19 @@ export const createTransaction = async (req: AuthenticatedRequest, res: Response
         voucherCode: appliedVoucherCode,
         couponCode: appliedCouponCode,
         paymentDeadline,
-        status: "WAITING_PAYMENT"
+        status: initialStatus
       }
     })
+
+    if (usedPoints > 0) {
+      await prisma.pointHistory.create({
+        data: {
+          userId: req.user!.id,
+          amount: -usedPoints,
+          expiresAt: dayjs().add(3, "month").toDate()
+        }
+      })
+    }
 
     // Kurangi available seats
     await prisma.event.update({
@@ -115,7 +130,7 @@ export const createTransaction = async (req: AuthenticatedRequest, res: Response
     })
 
     res.status(201).json({
-      message: "Transaction created successfully",
+      message: initialStatus === "DONE" ? "Free event transaction completed successfully" : "Transaction created successfully",
       transaction
     })
 
@@ -150,7 +165,22 @@ export const uploadPaymentProof = async (req: AuthenticatedRequest, res: Respons
       return res.status(400).json({ message: "No file uploaded" })
     }
 
-    const paymentProof = `/uploads/${req.file.filename}`
+    // Upload to Cloudinary
+    const result = await new Promise<any>((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        {
+          folder: 'payment-proofs',
+          public_id: `proof-${transaction.id}-${Date.now()}`,
+          resource_type: 'image'
+        },
+        (error, result) => {
+          if (error) reject(error)
+          else resolve(result)
+        }
+      ).end(req.file!.buffer)
+    })
+
+    const paymentProof = result.secure_url
 
     const updated = await prisma.transaction.update({
       where: { id: id },
@@ -182,7 +212,17 @@ export const getMyTransactions = async (req: AuthenticatedRequest, res: Response
             title: true,
             imageUrl: true,
             startDate: true,
-            location: true
+            endDate: true,
+            price: true,
+            location: true,
+            reviews: {
+              where: {
+                customerId: req.user!.id
+              },
+              select: {
+                id: true
+              }
+            }
           }
         }
       },
@@ -262,31 +302,87 @@ export const confirmTransaction = async (req: AuthenticatedRequest, res: Respons
     const transaction = await prisma.transaction.findFirst({
       where: {
         id,
-        status: "WAITING_CONFIRMATION",
         event: { organizerId: req.user!.id }
       },
-      include: { event: true }
+      include: {
+        event: true,
+        customer: true
+      }
     })
 
     if (!transaction) {
-      return res.status(404).json({ message: "Transaction not found or not waiting for confirmation" })
+      return res.status(404).json({ message: "Transaction not found" })
     }
 
     if (action === "ACCEPT") {
+      if (transaction.status === "DONE") {
+        return res.json({ message: "Transaction already accepted" })
+      }
+
+      if (transaction.status !== "WAITING_CONFIRMATION") {
+        return res.status(400).json({ message: `Transaction cannot be accepted from status ${transaction.status}` })
+      }
+
       await prisma.transaction.update({
         where: { id: id },
         data: { status: "DONE" }
       })
+
+      // Send email notification
+      try {
+        const emailHtml = `
+          <h2>Pembayaran Tiket Diterima!</h2>
+          <p>Hai ${transaction.customer.email},</p>
+          <p>Pembayaran tiket untuk event <strong>${transaction.event.title}</strong> telah diterima.</p>
+          <p>Detail transaksi:</p>
+          <ul>
+            <li>ID Transaksi: ${transaction.id}</li>
+            <li>Jumlah Tiket: ${transaction.quantity}</li>
+            <li>Total Bayar: Rp ${transaction.finalPrice.toLocaleString('id-ID')}</li>
+          </ul>
+          <p>Silakan tunjukkan bukti pembayaran ini saat check-in di venue event.</p>
+        `
+        await sendEmail(transaction.customer.email, 'Pembayaran Tiket Diterima', emailHtml)
+      } catch (emailError) {
+        console.error('Failed to send email:', emailError)
+        // Continue even if email fails
+      }
+
       return res.json({ message: "Transaction accepted" })
     }
 
     if (action === "REJECT") {
+      if (transaction.status === "REJECTED") {
+        return res.json({ message: "Transaction already rejected" })
+      }
+
+      if (transaction.status !== "WAITING_CONFIRMATION") {
+        return res.status(400).json({ message: `Transaction cannot be rejected from status ${transaction.status}` })
+      }
+
       // Rollback: kembalikan seats, points, coupon sesuai dokumentasi
       await rollbackTransaction(transaction)
       await prisma.transaction.update({
         where: { id: id },
         data: { status: "REJECTED" }
       })
+
+      // Send email notification
+      try {
+        const emailHtml = `
+          <h2>Pembayaran Tiket Ditolak</h2>
+          <p>Hai ${transaction.customer.email},</p>
+          <p>Maaf, pembayaran tiket untuk event <strong>${transaction.event.title}</strong> ditolak.</p>
+          <p>Alasan: Bukti pembayaran tidak valid atau tidak sesuai.</p>
+          <p>Poin, voucher, atau kupon yang digunakan telah dikembalikan ke akun Anda.</p>
+          <p>Silakan upload ulang bukti pembayaran jika Anda yakin pembayaran sudah benar.</p>
+        `
+        await sendEmail(transaction.customer.email, 'Pembayaran Tiket Ditolak', emailHtml)
+      } catch (emailError) {
+        console.error('Failed to send email:', emailError)
+        // Continue even if email fails
+      }
+
       return res.json({ message: "Transaction rejected and rolled back" })
     }
 
@@ -305,14 +401,23 @@ export const cancelTransaction = async (req: AuthenticatedRequest, res: Response
     const transaction = await prisma.transaction.findFirst({
       where: {
         id,
-        customerId: req.user!.id,
-        status: { in: ["WAITING_PAYMENT", "WAITING_CONFIRMATION"] }
+        customerId: req.user!.id
       },
       include: { event: true }
     })
 
     if (!transaction) {
-      return res.status(404).json({ message: "Transaction not found or cannot be cancelled" })
+      return res.status(404).json({ message: "Transaction not found" })
+    }
+
+    const isPendingTransaction = ["WAITING_PAYMENT", "WAITING_CONFIRMATION"].includes(transaction.status)
+    const isFreeDoneBeforeEvent =
+      transaction.status === "DONE" &&
+      transaction.finalPrice === 0 &&
+      new Date(transaction.event.startDate) > new Date()
+
+    if (!isPendingTransaction && !isFreeDoneBeforeEvent) {
+      return res.status(400).json({ message: "Transaction cannot be cancelled" })
     }
 
     // Rollback sesuai dokumentasi

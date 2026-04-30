@@ -1,6 +1,7 @@
 import { Router } from "express"
 import {
   listEvents,
+  getOrganizerEvents,
   getEventDetail,
   createEvent,
   updateEvent,
@@ -14,6 +15,10 @@ const router = Router()
 
 // Public routes
 router.get("/", listEvents)
+
+// Protected read route (ORGANIZER only)
+router.get("/organizer", authMiddleware, roleMiddleware("ORGANIZER"), getOrganizerEvents)
+
 router.get("/:id", getEventDetail)
 
 // Protected routes (ORGANIZER only)

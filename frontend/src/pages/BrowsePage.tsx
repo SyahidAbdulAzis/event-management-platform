@@ -13,26 +13,34 @@ interface EventItem {
   id: string
   title: string
   startDate: string
+  endDate: string
   location: string
   price: number
   availableSeats: number
   imageUrl: string | null
   category: string
+  status: string
 }
 
 /* ─── EVENT CARD ─── */
 function EventCard({ ev }: { ev: EventItem }) {
   const formattedDate = new Date(ev.startDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
   const formattedPrice = ev.price === 0 ? 'Gratis' : `Rp ${ev.price.toLocaleString('id-ID')}`
+  const isExpired = ev.status === 'EXPIRED' || new Date(ev.endDate) < new Date()
   return (
     <Link to={`/events/${ev.id}`}
-      className="group flex flex-col bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+      className={`group flex flex-col bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 ${isExpired ? 'opacity-70' : ''}`}>
       <div className="relative h-[180px] overflow-hidden flex-shrink-0">
         <img src={ev.imageUrl || '/concert.webp'} alt={ev.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+          className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${isExpired ? 'grayscale' : ''}`} />
         <span className="absolute top-2 left-2 bg-[#0c4a6e]/90 text-white text-xs font-semibold px-2 py-0.5 rounded">
           {ev.availableSeats} Kursi
         </span>
+        {isExpired && (
+          <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-semibold px-2 py-0.5 rounded">
+            Berakhir
+          </span>
+        )}
       </div>
       <div className="p-3 flex flex-col flex-1">
         <p className="text-xs font-semibold text-gray-400 mb-1">{formattedDate}</p>
@@ -48,7 +56,9 @@ function EventCard({ ev }: { ev: EventItem }) {
             <p className="text-[10px] text-gray-400 uppercase tracking-wider leading-none mb-0.5">Mulai dari</p>
             <p className="text-base font-extrabold text-[#0ea5e9]">{formattedPrice}</p>
           </div>
-          {ev.availableSeats === 0 ? (
+          {isExpired ? (
+            <span className="text-xs font-bold text-gray-500 bg-gray-200 px-2.5 py-1 rounded-md">Berakhir</span>
+          ) : ev.availableSeats === 0 ? (
             <span className="text-xs font-bold text-gray-500 bg-gray-200 px-2.5 py-1 rounded-md">Sold Out</span>
           ) : (
             <span className="text-xs font-bold text-white bg-[#f97316] px-2.5 py-1 rounded-md">Beli</span>
@@ -88,8 +98,16 @@ export default function BrowsePage() {
     return () => clearTimeout(timer)
   }, [searchQuery])
 
-  /* Filter client-side sudah dihandle dari API, useMemo hanya untuk referensi */
-  const filteredEvents = useMemo(() => allEvents, [allEvents])
+  /* Sort: Beli (active) -> Sold Out -> Expired */
+  const filteredEvents = useMemo(() => {
+    const rank = (e: EventItem) => {
+      const expired = e.status === 'EXPIRED' || (e.endDate && new Date(e.endDate) < new Date())
+      if (expired) return 2
+      if (e.availableSeats === 0) return 1
+      return 0
+    }
+    return [...allEvents].sort((a, b) => rank(a) - rank(b))
+  }, [allEvents])
 
   const hasFilters = debouncedQuery !== "" || activeCategory !== "Semua" || activeLocation !== "Semua Kota"
 
@@ -199,21 +217,22 @@ export default function BrowsePage() {
         ) : (
           /* Empty State */
           <div className="max-w-7xl mx-auto">
-            <section className="min-h-[60vh] flex items-center justify-center py-10">
-              <div className="text-center py-20 px-8 bg-white rounded-xl border border-gray-100 w-full">
-              <span className="material-symbols-outlined text-6xl text-gray-200 block mb-4">search_off</span>
-              <p className="text-gray-500 text-base font-medium">Tidak ada event ditemukan</p>
-              <p className="text-gray-400 text-base mt-2 mb-8">{hasFilters ? "Coba ubah filter atau kata kunci" : "Belum ada event tersedia"}</p>
+            <div className="text-center py-14 px-8 rounded-xl border border-gray-200 shadow-sm w-full">
+              <span className="material-symbols-outlined text-6xl text-gray-400 block mb-4">search_off</span>
+              <p className="text-gray-700 text-base font-semibold">Tidak ada event ditemukan</p>
+              <p className={`text-gray-500 text-base mt-2 ${hasFilters ? "mb-8" : ""}`}>
+                {hasFilters ? "Coba ubah filter atau kata kunci" : "Belum ada event tersedia"}
+              </p>
               {hasFilters && (
-                <button 
+                <button
                   onClick={() => { setSearchQuery(""); setActiveCategory("Semua"); setActiveLocation("Semua Kota") }}
-                  className="inline-flex items-center gap-2 bg-[#0ea5e9] text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#0284c7] transition-colors">
+                  className="inline-flex items-center gap-2 bg-[#0ea5e9] text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#0284c7] transition-colors"
+                >
                   <span className="material-symbols-outlined text-[18px]">refresh</span>
                   Reset Filter
                 </button>
               )}
             </div>
-          </section>
         </div>
         )}
 

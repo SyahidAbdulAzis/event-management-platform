@@ -15,6 +15,12 @@ export const listEvents = async (req: Request, res: Response) => {
   try {
     const { search, category, location } = req.query
 
+    // Auto-expire events whose endDate has passed (realtime check)
+    await prisma.event.updateMany({
+      where: { endDate: { lt: new Date() }, status: "ACTIVE" },
+      data: { status: "EXPIRED" }
+    })
+
     const where: any = {}
 
     if (search) {
@@ -76,6 +82,34 @@ export const listEvents = async (req: Request, res: Response) => {
   }
 }
 
+// ================= LIST ORGANIZER EVENTS =================
+export const getOrganizerEvents = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const events = await prisma.event.findMany({
+      where: { organizerId: req.user!.id },
+      select: {
+        id: true,
+        title: true,
+        startDate: true,
+        endDate: true,
+        totalSeats: true,
+        availableSeats: true,
+        createdAt: true
+      },
+      orderBy: {
+        createdAt: "desc"
+      }
+    })
+
+    res.json({
+      message: "Organizer events retrieved successfully",
+      events
+    })
+  } catch (err: any) {
+    res.status(500).json({ message: err.message })
+  }
+}
+
 // ================= GET EVENT DETAIL =================
 export const getEventDetail = async (req: Request, res: Response) => {
   try {
@@ -87,7 +121,8 @@ export const getEventDetail = async (req: Request, res: Response) => {
         organizer: {
           select: {
             id: true,
-            email: true
+            email: true,
+            profilePhoto: true
           }
         },
         vouchers: {
@@ -149,6 +184,25 @@ export const createEvent = async (req: AuthenticatedRequest, res: Response) => {
       totalSeats
     } = req.body
 
+    // Validasi field required
+    if (!title || !description || !category || !location || !startDate || !endDate || !totalSeats) {
+      return res.status(400).json({ message: "Title, description, category, location, startDate, endDate, and totalSeats are required" })
+    }
+
+    if (price !== undefined && price < 0) {
+      return res.status(400).json({ message: "Price cannot be negative" })
+    }
+
+    if (parseInt(totalSeats) < 1) {
+      return res.status(400).json({ message: "Total seats must be at least 1" })
+    }
+
+    if (new Date(startDate) >= new Date(endDate)) {
+      return res.status(400).json({ message: "End date must be after start date" })
+    }
+
+    const isExpired = new Date(endDate) < new Date()
+
     const event = await prisma.event.create({
       data: {
         organizerId: req.user!.id,
@@ -161,7 +215,8 @@ export const createEvent = async (req: AuthenticatedRequest, res: Response) => {
         endDate: new Date(endDate),
         price: parseInt(price),
         totalSeats: parseInt(totalSeats),
-        availableSeats: parseInt(totalSeats)
+        availableSeats: parseInt(totalSeats),
+        status: isExpired ? "EXPIRED" : "ACTIVE"
       }
     })
 
@@ -188,7 +243,8 @@ export const updateEvent = async (req: AuthenticatedRequest, res: Response) => {
       startDate,
       endDate,
       price,
-      totalSeats
+      totalSeats,
+      vouchers
     } = req.body
 
     // Check if event exists and belongs to the organizer
@@ -210,6 +266,11 @@ export const updateEvent = async (req: AuthenticatedRequest, res: Response) => {
       availableSeats = parseInt(totalSeats) - soldSeats
     }
 
+    // Determine event status based on endDate
+    const finalEndDate = endDate ? new Date(endDate) : existingEvent.endDate
+    const newStatus = finalEndDate < new Date() ? "EXPIRED" : "ACTIVE"
+
+    // Update event
     const event = await prisma.event.update({
       where: { id: id },
       data: {
@@ -220,11 +281,37 @@ export const updateEvent = async (req: AuthenticatedRequest, res: Response) => {
         imageUrl,
         startDate: startDate ? new Date(startDate) : undefined,
         endDate: endDate ? new Date(endDate) : undefined,
-        price: price ? parseInt(price) : undefined,
+        price: price !== undefined ? parseInt(price) : undefined,
         totalSeats: totalSeats ? parseInt(totalSeats) : undefined,
-        availableSeats: totalSeats ? availableSeats : undefined
+        availableSeats: totalSeats ? availableSeats : undefined,
+        status: newStatus
       }
     })
+
+    // Handle vouchers: delete existing and create new ones
+    if (vouchers !== undefined) {
+      console.log("Vouchers received:", vouchers)
+
+      // Delete all existing vouchers for this event
+      const deleted = await prisma.voucher.deleteMany({
+        where: { eventId: id }
+      })
+      console.log("Deleted vouchers:", deleted)
+
+      // Create new vouchers
+      if (vouchers.length > 0) {
+        const created = await prisma.voucher.createMany({
+          data: vouchers.map((v: any) => ({
+            eventId: id,
+            code: v.code,
+            discount: parseInt(v.discount),
+            startDate: new Date(v.startDate),
+            endDate: new Date(v.expiryDate)
+          }))
+        })
+        console.log("Created vouchers:", created)
+      }
+    }
 
     res.json({
       message: "Event updated successfully",

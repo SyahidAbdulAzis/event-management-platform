@@ -12,14 +12,14 @@ interface StarRatingInputProps {
 
 const StarRatingInput: React.FC<StarRatingInputProps> = ({ rating, onRatingChange }) => {
   return (
-    <div className="flex gap-1">
+    <div className="flex gap-0.5">
       {[1, 2, 3, 4, 5].map((star) => (
         <button
           key={star}
           type="button"
           onClick={() => onRatingChange(rating === star ? 0 : star)}
-          className={`material-symbols-outlined text-3xl transition-all duration-200 ${
-            star <= rating ? 'text-yellow-400' : 'text-gray-300'
+          className={`material-symbols-outlined text-sm transition-all duration-200 ${
+            star <= rating ? 'text-[#f97316]' : 'text-gray-300'
           }`}
           style={{
             fontVariationSettings: star <= rating ? "'FILL' 1" : "'FILL' 0"
@@ -34,7 +34,7 @@ const StarRatingInput: React.FC<StarRatingInputProps> = ({ rating, onRatingChang
 
 /* ─── PAGE ─── */
 export default function ReviewForm() {
-  const { id } = useParams<{ id: string }>()
+  const { eventId } = useParams<{ eventId: string }>()
   const navigate = useNavigate()
 
   const [event, setEvent] = useState<any>(null)
@@ -44,12 +44,15 @@ export default function ReviewForm() {
   const [fetchLoading, setFetchLoading] = useState(true)
 
   useEffect(() => {
-    if (!id) return
-    api.get(`/api/events/${id}`)
+    if (!eventId) {
+      setFetchLoading(false)
+      return
+    }
+    api.get(`/api/events/${eventId}`)
       .then(res => setEvent(res.data.event))
       .catch(console.error)
       .finally(() => setFetchLoading(false))
-  }, [id])
+  }, [eventId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -66,8 +69,12 @@ export default function ReviewForm() {
 
     setLoading(true)
     try {
+      if (!eventId) {
+        alert("Event tidak valid")
+        return
+      }
       // Customer hanya dapat memberikan ulasan setelah menghadiri event (divalidasi di backend)
-      await api.post('/api/reviews', { eventId: id, rating, comment })
+      await api.post('/api/reviews', { eventId, rating, comment })
       alert("Ulasan berhasil dikirim!")
       navigate(`/organizer/${event?.organizerId}`)
     } catch (err: any) {
@@ -78,7 +85,7 @@ export default function ReviewForm() {
   }
 
   const handleClose = () => {
-    navigate(`/events/${id}`)
+    navigate(`/events/${eventId}`)
   }
 
   return (
@@ -183,7 +190,7 @@ export default function ReviewForm() {
                     )}
                   </button>
                   <Link
-                    to={`/events/${id}`}
+                    to={`/events/${eventId}`}
                     className="px-6 py-3 border-2 border-dashed border-gray-300 text-gray-600 rounded-xl font-semibold hover:border-gray-400 hover:bg-gray-50/80 transition-colors flex items-center justify-center gap-2 text-sm backdrop-blur-sm"
                   >
                     Batal

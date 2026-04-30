@@ -8,6 +8,7 @@ dotenv.config()
 // Import cron jobs
 import "./cron/pointExpiration"
 import "./cron/transactionExpiration"
+import "./cron/couponExpiration"
 
 const app = express()
 
@@ -45,14 +46,41 @@ app.get("/api/profile", authMiddleware, async (req: Request, res: Response) => {
       where: { userId, expiresAt: { gt: new Date() } },
       _sum: { amount: true }
     })
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, email: true, role: true, referralCode: true }
-    })
+    const users = await prisma.$queryRaw<Array<{
+      id: string
+      email: string
+      role: string
+      referralCode: string
+      profilePhoto: string | null
+    }>>`
+      SELECT id, email, role, "referralCode", "profilePhoto"
+      FROM "User"
+      WHERE id = ${userId}
+      LIMIT 1
+    `
+    const user = users[0] || null
     res.json({
       message: "SUCCESS ACCESS",
       user: { ...user, points: pointsAgg._sum.amount || 0 }
     })
+  } catch (err: any) {
+    res.status(500).json({ message: err.message })
+  }
+})
+
+app.get("/api/coupons/my", authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id
+    const coupons = await prisma.coupon.findMany({
+      where: {
+        userId,
+        isUsed: false,
+        expiresAt: { gt: new Date() }
+      },
+      orderBy: { expiresAt: "asc" }
+    })
+
+    res.json({ coupons })
   } catch (err: any) {
     res.status(500).json({ message: err.message })
   }
@@ -90,7 +118,7 @@ app.get(
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error(err)
   res.status(500).json({
-    message: "Internal Server Error"
+    message: err.message || "Internal Server Error"
   })
 })
 

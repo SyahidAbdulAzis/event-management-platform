@@ -14,6 +14,18 @@ export const createReview = async (req: AuthenticatedRequest, res: Response) => 
   try {
     const { eventId, rating, comment } = req.body
 
+    if (!eventId) {
+      return res.status(400).json({ message: "Event tidak valid" })
+    }
+
+    if (rating === undefined || rating === null) {
+      return res.status(400).json({ message: "Rating wajib diisi" })
+    }
+
+    if (!comment || String(comment).trim() === "") {
+      return res.status(400).json({ message: "Ulasan wajib diisi" })
+    }
+
     // Validasi: customer hanya bisa review setelah menghadiri event (status DONE)
     const completedTransaction = await prisma.transaction.findFirst({
       where: {
@@ -107,7 +119,7 @@ export const getOrganizerProfile = async (req: Request, res: Response) => {
 
     const organizer = await prisma.user.findFirst({
       where: { id: organizerId as string, role: "ORGANIZER" },
-      select: { id: true, email: true }
+      select: { id: true, email: true, profilePhoto: true }
     })
 
     if (!organizer) {

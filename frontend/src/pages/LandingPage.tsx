@@ -17,27 +17,35 @@ interface EventItem {
   id: string
   title: string
   startDate: string
+  endDate: string
   location: string
   price: number
   availableSeats: number
   imageUrl: string | null
   category: string
+  status: string
 }
 
 /* ─── EVENT CARD — mirip Eratix ─── */
 function EventCard({ ev }: { ev: EventItem }) {
   const formattedDate = new Date(ev.startDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
   const formattedPrice = ev.price === 0 ? 'Gratis' : `Rp ${ev.price.toLocaleString('id-ID')}`
+  const isExpired = ev.status === 'EXPIRED' || (ev.endDate && new Date(ev.endDate) < new Date())
   return (
     <Link to={`/events/${ev.id}`}
-      className="group flex flex-col bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+      className={`group flex flex-col bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 ${isExpired ? 'opacity-70' : ''}`}>
       {/* Thumbnail */}
       <div className="relative h-[140px] overflow-hidden flex-shrink-0">
         <img src={ev.imageUrl || '/concert.webp'} alt={ev.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+          className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${isExpired ? 'grayscale' : ''}`} />
         <span className="absolute top-2 left-2 bg-[#0c4a6e]/90 text-white text-xs font-semibold px-2 py-0.5 rounded">
           {ev.availableSeats} Kursi
         </span>
+        {isExpired && (
+          <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-semibold px-2 py-0.5 rounded">
+            Berakhir
+          </span>
+        )}
       </div>
       {/* Body */}
       <div className="p-3 flex flex-col flex-1">
@@ -55,7 +63,9 @@ function EventCard({ ev }: { ev: EventItem }) {
             <p className="text-[10px] text-gray-400 uppercase tracking-wider leading-none mb-0.5">Mulai dari</p>
             <p className="text-base font-extrabold text-[#0ea5e9]">{formattedPrice}</p>
           </div>
-          {ev.availableSeats === 0 ? (
+          {isExpired ? (
+            <span className="text-xs font-bold text-gray-500 bg-gray-200 px-2.5 py-1 rounded-md">Berakhir</span>
+          ) : ev.availableSeats === 0 ? (
             <span className="text-xs font-bold text-gray-500 bg-gray-200 px-2.5 py-1 rounded-md">Sold Out</span>
           ) : (
             <span className="text-xs font-bold text-white bg-[#f97316] px-2.5 py-1 rounded-md">Beli</span>
@@ -78,7 +88,18 @@ export default function LandingPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  const freeEvents = events.filter(e => e.price === 0)
+  const sortEvents = (list: EventItem[]) => {
+    const rank = (e: EventItem) => {
+      const expired = e.status === 'EXPIRED' || (e.endDate && new Date(e.endDate) < new Date())
+      if (expired) return 2
+      if (e.availableSeats === 0) return 1
+      return 0
+    }
+    return [...list].sort((a, b) => rank(a) - rank(b))
+  }
+
+  const sortedEvents = sortEvents(events)
+  const freeEvents = sortEvents(events.filter(e => e.price === 0))
 
   return (
     <div className="min-h-screen font-['Inter'] overflow-x-hidden pt-12" style={{ background: PAGE_BG }}>
@@ -130,9 +151,15 @@ export default function LandingPage() {
 
           {loading ? (
             <div className="text-center py-10 text-gray-400">Memuat event...</div>
+          ) : events.length === 0 ? (
+            <div className="rounded-xl border border-gray-200 shadow-sm w-full text-center py-14 px-8">
+              <span className="material-symbols-outlined text-5xl text-gray-400 mb-3 block">event_busy</span>
+              <p className="text-gray-700 font-semibold">Belum ada event yang tersedia</p>
+              <p className="text-gray-500 text-sm mt-1">Cek lagi nanti atau jadilah organizer pertama!</p>
+            </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {events.slice(0, 10).map(ev => <EventCard key={ev.id} ev={ev} />)}
+              {sortedEvents.slice(0, 10).map(ev => <EventCard key={ev.id} ev={ev} />)}
             </div>
           )}
 
@@ -200,9 +227,17 @@ export default function LandingPage() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="inline-flex items-center bg-[#0c4a6e] text-white px-5 py-2.5 rounded-xl font-['Plus_Jakarta_Sans'] text-base font-bold">Event Gratis</h2>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-            {freeEvents.slice(0, 5).map(ev => <EventCard key={ev.id} ev={ev} />)}
-          </div>
+          {freeEvents.length === 0 ? (
+            <div className="rounded-xl border border-gray-200 shadow-sm w-full text-center py-14 px-8">
+              <span className="material-symbols-outlined text-5xl text-gray-400 mb-3 block">event_busy</span>
+              <p className="text-gray-700 font-semibold">Belum ada event gratis</p>
+              <p className="text-gray-500 text-sm mt-1">Cek lagi nanti untuk event gratis menarik!</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              {freeEvents.slice(0, 5).map(ev => <EventCard key={ev.id} ev={ev} />)}
+            </div>
+          )}
           <div className="text-center mt-6">
             <Link to="/browse"
               className="inline-flex items-center gap-1.5 border border-[#0ea5e9] text-[#0ea5e9] text-base font-bold px-6 py-2 rounded-lg hover:bg-[#0ea5e9] hover:text-white transition-colors">

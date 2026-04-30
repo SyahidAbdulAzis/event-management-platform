@@ -5,15 +5,25 @@ interface User {
   id: string
   email: string
   role: "CUSTOMER" | "ORGANIZER"
+  referralCode?: string
+  profilePhoto?: string
+}
+
+type UserPatch = {
+  id: string
+  email: string
+  role: "CUSTOMER" | "ORGANIZER"
+  referralCode?: string
+  profilePhoto?: string
 }
 
 interface AuthState {
   user: User | null
   token: string | null
   isAuthenticated: boolean
-  setUser: (user: User) => void
+  setUser: (user: UserPatch) => void
   setToken: (token: string) => void
-  login: (user: User, token: string) => void
+  login: (user: UserPatch, token: string) => void
   logout: () => void
 }
 

@@ -9,7 +9,7 @@ interface Voucher {
   code: string
   discount: number
   startDate: string
-  expiryDate: string
+  endDate: string
 }
 
 export default function CreateEventPage() {
@@ -17,8 +17,9 @@ export default function CreateEventPage() {
   const [loading, setLoading] = useState(false)
   const [isPaid, setIsPaid] = useState(true)
   const [vouchers, setVouchers] = useState<Voucher[]>([])
-  const [newVoucher, setNewVoucher] = useState({ code: "", discount: "", startDate: "", expiryDate: "" })
+  const [newVoucher, setNewVoucher] = useState({ code: "", discount: "", startDate: "", endDate: "" })
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false)
+  const [locationMenuOpen, setLocationMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("info") // info, schedule, price
 
   const categories = [
@@ -29,11 +30,12 @@ export default function CreateEventPage() {
     { label: "Others", icon: "more_horiz" },
   ]
 
+  const locations = ["Jakarta", "Bandung", "Surabaya", "Bali"]
+
   const [formData, setFormData] = useState({
     title: "",
     category: "Festival",
-    location: "",
-    address: "",
+    location: "Jakarta",
     description: "",
     startDate: "",
     endDate: "",
@@ -55,15 +57,15 @@ export default function CreateEventPage() {
   }
 
   const addVoucher = () => {
-    if (newVoucher.code && newVoucher.discount && newVoucher.startDate && newVoucher.expiryDate) {
+    if (newVoucher.code && newVoucher.discount && newVoucher.startDate && newVoucher.endDate) {
       setVouchers(prev => [...prev, { 
         id: Date.now(),
         code: newVoucher.code, 
         discount: parseInt(newVoucher.discount),
         startDate: newVoucher.startDate,
-        expiryDate: newVoucher.expiryDate
+        endDate: newVoucher.endDate
       }])
-      setNewVoucher({ code: "", discount: "", startDate: "", expiryDate: "" })
+      setNewVoucher({ code: "", discount: "", startDate: "", endDate: "" })
     }
   }
 
@@ -80,7 +82,6 @@ export default function CreateEventPage() {
         title: formData.title,
         category: formData.category,
         location: formData.location,
-        address: formData.address,
         description: formData.description,
         startDate: new Date(formData.startDate).toISOString(),
         endDate: new Date(formData.endDate).toISOString(),
@@ -271,63 +272,67 @@ export default function CreateEventPage() {
                           Lokasi <span className="text-red-500">*</span>
                         </label>
                         <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setLocationMenuOpen(!locationMenuOpen)}
+                            className="w-full px-4 pl-10 py-3 bg-gray-50 rounded-lg text-sm text-gray-700 text-left outline-none hover:bg-gray-100 transition-colors border border-gray-200 focus:border-[#0ea5e9] flex items-center justify-between"
+                          >
+                            <span>{formData.location}</span>
+                            <span className="material-symbols-outlined text-gray-400 text-base">expand_more</span>
+                          </button>
+                          {locationMenuOpen && (
+                            <div className="absolute z-20 w-full mt-1 bg-white rounded-lg shadow-lg border border-gray-100 py-1 max-h-24 overflow-y-auto">
+                              {locations.map((loc) => (
+                                <button
+                                  key={loc}
+                                  type="button"
+                                  onClick={() => {
+                                    setFormData(prev => ({ ...prev, location: loc }))
+                                    setLocationMenuOpen(false)
+                                  }}
+                                  className={`w-full px-4 py-2.5 text-sm text-left hover:bg-gray-50 transition-colors flex items-center justify-between ${
+                                    formData.location === loc ? 'bg-[#0ea5e9]/10 text-[#0ea5e9] font-semibold' : 'text-gray-700'
+                                  }`}
+                                >
+                                  <span>{loc}</span>
+                                  {formData.location === loc && <span className="material-symbols-outlined text-[18px] text-[#0ea5e9]">check</span>}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-base pointer-events-none">location_on</span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                            Tanggal & Waktu Mulai <span className="text-red-500">*</span>
+                          </label>
                           <input
-                            type="text"
-                            name="location"
-                            value={formData.location}
+                            type="datetime-local"
+                            name="startDate"
+                            value={formData.startDate}
                             onChange={handleChange}
                             required
-                            placeholder="Contoh: Gambir Expo, Jakarta"
-                            className="w-full px-4 pl-10 py-3 bg-gray-50 rounded-lg text-sm text-gray-700 placeholder-gray-400 outline-none focus:bg-gray-100 transition-colors border border-gray-200 focus:border-[#0ea5e9]"
+                            className="w-full px-4 py-3 bg-gray-50 rounded-lg text-sm text-gray-700 outline-none focus:bg-gray-100 transition-colors border border-gray-200 focus:border-[#0ea5e9]"
                           />
-                          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-base">location_on</span>
                         </div>
-              </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                          Alamat Lengkap <span className="text-red-500">*</span>
-                        </label>
-                        <textarea
-                          name="address"
-                          value={formData.address}
-                          onChange={handleChange}
-                          required
-                          rows={2}
-                          placeholder="Contoh: Jl. H. Benyamin Sueb, Kemayoran, Jakarta Pusat"
-                          className="w-full px-4 py-3 bg-gray-50 rounded-lg text-sm text-gray-700 placeholder-gray-400 outline-none focus:bg-gray-100 transition-colors border border-gray-200 focus:border-[#0ea5e9] resize-none"
-                        />
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                            Tanggal & Waktu Selesai <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="datetime-local"
+                            name="endDate"
+                            value={formData.endDate}
+                            onChange={handleChange}
+                            required
+                            className="w-full px-4 py-3 bg-gray-50 rounded-lg text-sm text-gray-700 outline-none focus:bg-gray-100 transition-colors border border-gray-200 focus:border-[#0ea5e9]"
+                          />
+                        </div>
                       </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Tanggal & Waktu Mulai <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="datetime-local"
-                      name="startDate"
-                      value={formData.startDate}
-                      onChange={handleChange}
-                      required
-                      className="w-full px-4 py-3 bg-gray-50 rounded-lg text-sm text-gray-700 outline-none focus:bg-gray-100 transition-colors border border-gray-200 focus:border-[#0ea5e9]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Tanggal & Waktu Selesai <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="datetime-local"
-                      name="endDate"
-                      value={formData.endDate}
-                      onChange={handleChange}
-                      required
-                      className="w-full px-4 py-3 bg-gray-50 rounded-lg text-sm text-gray-700 outline-none focus:bg-gray-100 transition-colors border border-gray-200 focus:border-[#0ea5e9]"
-                    />
-                  </div>
-                </div>
-              </div>
+                    </div>
                   ) : (
                     <div className="space-y-4">
                 {/* Toggle Gratis/Berbayar */}
@@ -394,50 +399,65 @@ export default function CreateEventPage() {
                   </div>
                 </div>
 
+                      {isPaid && (
                       <div className="pt-4 border-t border-gray-100">
                         <h3 className="text-sm font-bold text-gray-800 mb-3 font-['Plus_Jakarta_Sans']">Voucher Promo (Opsional)</h3>
                 
-                <div className="flex flex-col md:flex-row gap-3 mb-4">
-                  <input
-                    type="text"
-                    value={newVoucher.code}
-                    onChange={(e) => setNewVoucher(prev => ({ ...prev, code: e.target.value }))}
-                    placeholder="Kode voucher (contoh: DISKON20)"
-                    className="flex-1 px-4 py-3 bg-gray-50 rounded-lg text-sm text-gray-700 placeholder-gray-400 outline-none focus:bg-gray-100 transition-colors border border-gray-200 focus:border-[#0ea5e9]"
-                  />
-                  <input
-                    type="number"
-                    value={newVoucher.discount}
-                            onChange={(e) => {
-                              const value = e.target.value
-                              if (value === "" || (parseInt(value) >= 1 && parseInt(value) <= 100)) {
-                                setNewVoucher(prev => ({ ...prev, discount: value }))
-                              }
-                            }}
-                    placeholder="Diskon %"
-                    min="1"
-                    max="100"
-                    className="w-full md:w-24 px-4 py-3 bg-gray-50 rounded-lg text-sm text-gray-700 placeholder-gray-400 outline-none focus:bg-gray-100 transition-colors border border-gray-200 focus:border-[#0ea5e9]"
-                  />
-                          <input
-                            type="date"
-                            value={newVoucher.startDate}
-                            onChange={(e) => setNewVoucher(prev => ({ ...prev, startDate: e.target.value }))}
-                            className="w-full md:w-40 px-4 py-3 bg-gray-50 rounded-lg text-sm text-gray-700 outline-none focus:bg-gray-100 transition-colors border border-gray-200 focus:border-[#0ea5e9]"
-                          />
-                  <input
-                    type="date"
-                    value={newVoucher.expiryDate}
-                    onChange={(e) => setNewVoucher(prev => ({ ...prev, expiryDate: e.target.value }))}
-                    className="w-full md:w-40 px-4 py-3 bg-gray-50 rounded-lg text-sm text-gray-700 outline-none focus:bg-gray-100 transition-colors border border-gray-200 focus:border-[#0ea5e9]"
-                  />
-                  <button
-                    type="button"
-                    onClick={addVoucher}
-                    className="px-6 py-3 bg-[#0ea5e9] text-white rounded-lg text-sm font-semibold hover:bg-[#0284c7] transition-colors whitespace-nowrap"
-                  >
-                    Tambah
-                  </button>
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Kode Voucher</label>
+                    <input
+                      type="text"
+                      value={newVoucher.code}
+                      onChange={(e) => setNewVoucher(prev => ({ ...prev, code: e.target.value }))}
+                      placeholder="Contoh: DISKON20"
+                      className="w-full px-4 py-3 bg-gray-50 rounded-lg text-sm text-gray-700 placeholder-gray-400 outline-none focus:bg-gray-100 transition-colors border border-gray-200 focus:border-[#0ea5e9]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Diskon (%)</label>
+                    <input
+                      type="number"
+                      value={newVoucher.discount}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        if (value === "" || (parseInt(value) >= 1 && parseInt(value) <= 100)) {
+                          setNewVoucher(prev => ({ ...prev, discount: value }))
+                        }
+                      }}
+                      placeholder="10"
+                      min="1"
+                      max="100"
+                      className="w-full px-4 py-3 bg-gray-50 rounded-lg text-sm text-gray-700 placeholder-gray-400 outline-none focus:bg-gray-100 transition-colors border border-gray-200 focus:border-[#0ea5e9]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Mulai Berlaku</label>
+                    <input
+                      type="date"
+                      value={newVoucher.startDate}
+                      onChange={(e) => setNewVoucher(prev => ({ ...prev, startDate: e.target.value }))}
+                      className="w-full px-4 py-3 bg-gray-50 rounded-lg text-sm text-gray-700 outline-none focus:bg-gray-100 transition-colors border border-gray-200 focus:border-[#0ea5e9]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Deadline</label>
+                    <input
+                      type="date"
+                      value={newVoucher.endDate}
+                      onChange={(e) => setNewVoucher(prev => ({ ...prev, endDate: e.target.value }))}
+                      className="w-full px-4 py-3 bg-gray-50 rounded-lg text-sm text-gray-700 outline-none focus:bg-gray-100 transition-colors border border-gray-200 focus:border-[#0ea5e9]"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <button
+                      type="button"
+                      onClick={addVoucher}
+                      className="w-full px-6 py-3 bg-[#0ea5e9] text-white rounded-lg text-sm font-semibold hover:bg-[#0284c7] transition-colors"
+                    >
+                      Tambah
+                    </button>
+                  </div>
                 </div>
 
                 {/* Active Vouchers */}
@@ -450,7 +470,7 @@ export default function CreateEventPage() {
                           <span className="material-symbols-outlined text-[#0ea5e9] text-base">local_offer</span>
                           <span className="font-semibold text-gray-800">{voucher.code}</span>
                           <span className="text-sm text-gray-600">{voucher.discount}% OFF</span>
-                                  <span className="text-xs text-gray-500">{new Date(voucher.startDate).toLocaleDateString('id-ID')} - {new Date(voucher.expiryDate).toLocaleDateString('id-ID')}</span>
+                                  <span className="text-xs text-gray-500">{new Date(voucher.startDate).toLocaleDateString('id-ID')} - {new Date(voucher.endDate).toLocaleDateString('id-ID')}</span>
                         </div>
                         <button
                           type="button"
@@ -464,6 +484,7 @@ export default function CreateEventPage() {
                   </div>
                 )}
               </div>
+                      )}
                     </div>
                   )}
                 </div>
