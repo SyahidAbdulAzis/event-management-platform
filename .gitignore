@@ -36,3 +36,4 @@ backend/uploads/
 
 # Prisma
 .prisma/client/
+.windsurf
