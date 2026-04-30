@@ -94,8 +94,8 @@ export const createTransaction = async (req: AuthenticatedRequest, res: Response
       finalPrice = finalPrice - usedPoints
     }
 
-    // Payment deadline: 2 hours from now sesuai dokumentasi
-    const paymentDeadline = dayjs().add(2, "hour").toDate()
+    // Payment deadline: 1 minute from now (testing)
+    const paymentDeadline = dayjs().add(1, "minute").toDate()
     const initialStatus = finalPrice === 0 ? "DONE" : "WAITING_PAYMENT"
 
     const transaction = await prisma.transaction.create({

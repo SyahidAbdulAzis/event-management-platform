@@ -6,8 +6,8 @@ import { rollbackTransaction } from "../controllers/transaction.controller"
 cron.schedule("* * * * *", async () => {
   const now = new Date()
 
-  // ===== EXPIRE: tidak upload bukti pembayaran dalam 2 jam =====
-  // sesuai dokumentasi: Transaksi kedaluwarsa jika bukti pembayaran tidak diunggah dalam 2 jam
+  // ===== EXPIRE: tidak upload bukti pembayaran sebelum paymentDeadline =====
+  // mode testing saat ini: paymentDeadline diset 1 menit setelah checkout
   const expiredTransactions = await prisma.transaction.findMany({
     where: {
       status: "WAITING_PAYMENT",
@@ -25,14 +25,13 @@ cron.schedule("* * * * *", async () => {
     console.log(`Transaction ${tx.id} EXPIRED`)
   }
 
-  // ===== AUTO-CANCEL: organizer tidak respon dalam 3 hari =====
-  // sesuai dokumentasi: Jika organizer tidak menerima/menolak dalam 3 hari, transaksi otomatis dibatalkan
-  const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000)
+  // ===== AUTO-CANCEL: organizer tidak respon dalam 1 menit (testing) =====
+  const oneMinuteAgo = new Date(now.getTime() - 60 * 1000)
 
   const waitingConfirmationTransactions = await prisma.transaction.findMany({
     where: {
       status: "WAITING_CONFIRMATION",
-      updatedAt: { lt: threeDaysAgo }
+      updatedAt: { lt: oneMinuteAgo }
     },
     include: { event: true }
   })
@@ -43,6 +42,6 @@ cron.schedule("* * * * *", async () => {
       where: { id: tx.id },
       data: { status: "CANCELLED" }
     })
-    console.log(`Transaction ${tx.id} AUTO-CANCELLED (organizer no response in 3 days)`)
+    console.log(`Transaction ${tx.id} AUTO-CANCELLED (organizer no response in 1 minute)`)
   }
 })

@@ -32,15 +32,48 @@ export default function MyTicketsPage() {
   const [filter, setFilter] = useState<string>("all")
   const [filterMenuOpen, setFilterMenuOpen] = useState(false)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [now, setNow] = useState(Date.now())
 
   useEffect(() => {
     if (!user) return
 
-    api.get('/api/transactions/my')
-      .then(res => setTransactions(res.data.transactions))
-      .catch(console.error)
-      .finally(() => setLoading(false))
+    let isMounted = true
+
+    const fetchTransactions = async () => {
+      try {
+        const res = await api.get('/api/transactions/my')
+        if (isMounted) {
+          setTransactions(res.data.transactions)
+        }
+      } catch (err) {
+        console.error(err)
+      } finally {
+        if (isMounted) {
+          setLoading(false)
+        }
+      }
+    }
+
+    fetchTransactions()
+    const refreshTimer = setInterval(fetchTransactions, 15000)
+
+    return () => {
+      isMounted = false
+      clearInterval(refreshTimer)
+    }
   }, [user])
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const getEffectiveStatus = (tx: Transaction) => {
+    if (tx.status === "WAITING_PAYMENT" && new Date(tx.paymentDeadline).getTime() <= now) {
+      return "EXPIRED"
+    }
+    return tx.status
+  }
 
   const handleCancelTransaction = async (transactionId: string) => {
     if (!confirm("Apakah Anda yakin ingin membatalkan transaksi ini?")) return
@@ -60,8 +93,9 @@ export default function MyTicketsPage() {
   }
 
   const filteredTransactions = transactions.filter(tx => {
+    const effectiveStatus = getEffectiveStatus(tx)
     if (filter === "all") return true
-    return tx.status === filter
+    return effectiveStatus === filter
   })
 
   const getStatusColor = (status: string) => {
@@ -173,7 +207,10 @@ export default function MyTicketsPage() {
                 </div>
               </div>
               <div className="divide-y divide-gray-100">
-                {filteredTransactions.map((tx, index) => (
+                {filteredTransactions.map((tx, index) => {
+                  const effectiveStatus = getEffectiveStatus(tx)
+
+                  return (
                   <div key={tx.id} className={`p-5 ${index !== filteredTransactions.length - 1 ? "" : ""}`}>
                     <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
                       <div className="flex-1">
@@ -182,8 +219,8 @@ export default function MyTicketsPage() {
                             <h3 className="text-lg font-bold text-gray-800 font-['Plus_Jakarta_Sans']">{tx.event.title}</h3>
                             <p className="text-sm text-gray-500 mt-1">{tx.event.location}</p>
                           </div>
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(tx.status)}`}>
-                            {getStatusLabel(tx.status)}
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(effectiveStatus)}`}>
+                            {getStatusLabel(effectiveStatus)}
                           </span>
                         </div>
 
@@ -203,7 +240,7 @@ export default function MyTicketsPage() {
                             Rp {tx.finalPrice.toLocaleString('id-ID')}
                           </p>
                           <div className="flex gap-2">
-                            {tx.status === "WAITING_PAYMENT" && (
+                            {effectiveStatus === "WAITING_PAYMENT" && (
                               <>
                                 <Link
                                   to={`/payment-proof/${tx.id}`}
@@ -220,7 +257,15 @@ export default function MyTicketsPage() {
                                 </button>
                               </>
                             )}
-                            {(tx.status === "WAITING_CONFIRMATION" || tx.status === "REJECTED") && (
+                            {effectiveStatus === "WAITING_CONFIRMATION" && (
+                              <Link
+                                to={`/payment-proof/${tx.id}`}
+                                className="px-4 py-2 bg-blue-100 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-200 transition-colors"
+                              >
+                                Lihat Status
+                              </Link>
+                            )}
+                            {(effectiveStatus === "WAITING_CONFIRMATION" || effectiveStatus === "REJECTED") && (
                               <button
                                 onClick={() => handleCancelTransaction(tx.id)}
                                 disabled={cancellingId === tx.id}
@@ -229,7 +274,7 @@ export default function MyTicketsPage() {
                                 {cancellingId === tx.id ? "Membatalkan..." : "Batalkan"}
                               </button>
                             )}
-                            {tx.status === "DONE" && tx.finalPrice === 0 && new Date(tx.event.startDate) > new Date() && (
+                            {effectiveStatus === "DONE" && tx.finalPrice === 0 && new Date(tx.event.startDate) > new Date() && (
                               <button
                                 onClick={() => handleCancelTransaction(tx.id)}
                                 disabled={cancellingId === tx.id}
@@ -238,7 +283,7 @@ export default function MyTicketsPage() {
                                 {cancellingId === tx.id ? "Membatalkan..." : "Batalkan"}
                               </button>
                             )}
-                            {tx.status === "DONE" && new Date(tx.event.endDate) < new Date() && tx.event.reviews.length === 0 && (
+                            {effectiveStatus === "DONE" && new Date(tx.event.endDate) < new Date() && tx.event.reviews.length === 0 && (
                               <Link
                                 to={`/review/${tx.event.id}`}
                                 className="px-4 py-2 bg-yellow-400 text-white text-sm font-medium rounded-lg hover:bg-yellow-500 transition-colors flex items-center gap-1"
@@ -258,7 +303,7 @@ export default function MyTicketsPage() {
                       </div>
                     </div>
                   </div>
-                ))}
+                )})}
               </div>
             </div>
           )}

@@ -10,6 +10,31 @@ interface AuthenticatedRequest extends Request {
   }
 }
 
+const mapVoucherPayload = (vouchers: any[], eventId: string) => {
+  return vouchers.map((v: any) => {
+    const endDateSource = v.endDate ?? v.expiryDate
+
+    if (!v.code || v.discount === undefined || !v.startDate || !endDateSource) {
+      throw new Error("Invalid voucher payload")
+    }
+
+    const startDate = new Date(v.startDate)
+    const endDate = new Date(endDateSource)
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      throw new Error("Invalid voucher date")
+    }
+
+    return {
+      eventId,
+      code: v.code,
+      discount: parseInt(v.discount),
+      startDate,
+      endDate
+    }
+  })
+}
+
 // ================= LIST EVENTS (with search & filter) =================
 export const listEvents = async (req: Request, res: Response) => {
   try {
@@ -181,7 +206,8 @@ export const createEvent = async (req: AuthenticatedRequest, res: Response) => {
       startDate,
       endDate,
       price,
-      totalSeats
+      totalSeats,
+      vouchers
     } = req.body
 
     // Validasi field required
@@ -219,6 +245,14 @@ export const createEvent = async (req: AuthenticatedRequest, res: Response) => {
         status: isExpired ? "EXPIRED" : "ACTIVE"
       }
     })
+
+    if (Array.isArray(vouchers) && vouchers.length > 0) {
+      const voucherData = mapVoucherPayload(vouchers, event.id)
+
+      await prisma.voucher.createMany({
+        data: voucherData
+      })
+    }
 
     res.status(201).json({
       message: "Event created successfully",
@@ -300,14 +334,9 @@ export const updateEvent = async (req: AuthenticatedRequest, res: Response) => {
 
       // Create new vouchers
       if (vouchers.length > 0) {
+        const voucherData = mapVoucherPayload(vouchers, id)
         const created = await prisma.voucher.createMany({
-          data: vouchers.map((v: any) => ({
-            eventId: id,
-            code: v.code,
-            discount: parseInt(v.discount),
-            startDate: new Date(v.startDate),
-            endDate: new Date(v.expiryDate)
-          }))
+          data: voucherData
         })
         console.log("Created vouchers:", created)
       }

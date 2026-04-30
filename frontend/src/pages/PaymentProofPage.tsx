@@ -19,7 +19,7 @@ export default function PaymentProofPage() {
       .then(res => {
         const tx = res.data.transaction
         setTransaction(tx)
-        // Hitung sisa waktu dari paymentDeadline sesuai dokumentasi (2 jam)
+        // Hitung sisa waktu dari paymentDeadline
         const deadline = new Date(tx.paymentDeadline).getTime()
         const remaining = Math.max(0, Math.floor((deadline - Date.now()) / 1000))
         setTimeLeft(remaining)
@@ -297,7 +297,7 @@ export default function PaymentProofPage() {
                       <ul className="space-y-1 text-xs text-gray-600">
                         <li className="flex gap-2">
                           <span className="text-[#f97316] mt-0.5">•</span>
-                          <span>Upload bukti dalam 2 jam setelah checkout</span>
+                          <span>Upload bukti dalam 1 menit setelah checkout (mode testing)</span>
                         </li>
                         <li className="flex gap-2">
                           <span className="text-[#f97316] mt-0.5">•</span>
